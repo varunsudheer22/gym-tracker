@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+
+// Next.js configuration for Vercel deployment
 const nextConfig = {
   images: {
     remotePatterns: [
