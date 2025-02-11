@@ -26,9 +26,7 @@ declare module 'next-auth/jwt' {
 }
 
 export const authOptions: AuthOptions = {
-  adapter: MongoDBAdapter(clientPromise, {
-    databaseName: 'gym-tracker'
-  }),
+  adapter: MongoDBAdapter(clientPromise) as any,
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_ID!,
