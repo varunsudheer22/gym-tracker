@@ -6,6 +6,25 @@ import { requireAuth } from '../../auth/auth-utils';
 import { Session } from 'next-auth';
 import mongoose from 'mongoose';
 
+interface IExercise {
+  exerciseId: mongoose.Types.ObjectId;
+  exerciseName: string;
+  sets: Array<{
+    weight: number;
+    reps: number;
+    notes?: string;
+  }>;
+}
+
+interface IWorkout {
+  _id: mongoose.Types.ObjectId;
+  date: Date;
+  workoutDayId: mongoose.Types.ObjectId;
+  exercises: IExercise[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireAuth();
@@ -47,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     const workouts = await Workout.find(query)
       .sort({ date: -1 })
-      .lean();
+      .lean() as IWorkout[];
 
     return NextResponse.json({ 
       success: true, 
@@ -58,7 +77,7 @@ export async function GET(request: NextRequest) {
         date: new Date(workout.date).toISOString().split('T')[0],
         createdAt: new Date(workout.createdAt).toISOString(),
         updatedAt: new Date(workout.updatedAt).toISOString(),
-        exercises: workout.exercises?.map(exercise => ({
+        exercises: workout.exercises?.map((exercise: IExercise) => ({
           ...exercise,
           exerciseId: exercise.exerciseId?.toString()
         })) || []

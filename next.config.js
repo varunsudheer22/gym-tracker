@@ -11,7 +11,6 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverActions: true,
     esmExternals: 'loose'
   },
   // Disable powered by header
