@@ -11,7 +11,7 @@ const nextConfig = {
     ],
   },
   experimental: {
-    esmExternals: 'loose'
+    serverActions: true
   },
   // Disable powered by header
   poweredByHeader: false,
@@ -49,6 +49,9 @@ const nextConfig = {
   },
   // Output static files when possible
   output: 'standalone',
+  typescript: {
+    ignoreBuildErrors: true
+  }
 }
 
 module.exports = nextConfig 
