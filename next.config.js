@@ -11,15 +11,8 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverActions: {
-      allowedOrigins: [
-        'localhost:3000',
-        'localhost:3003',
-        'gym-tracker-varunsudheer22.vercel.app',
-        'gym-tracker-git-main-varunsudheer22.vercel.app'
-      ],
-    },
-    esmExternals: 'loose',
+    serverActions: true,
+    esmExternals: 'loose'
   },
   // Disable powered by header
   poweredByHeader: false,

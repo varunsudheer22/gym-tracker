@@ -1,12 +1,12 @@
-import { Geist } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navbar } from "./components/Navbar";
 import { Metadata } from "next";
 
-const geist = Geist({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-geist",
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
@@ -22,7 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <body className={`${geist.variable} font-sans h-full bg-slate-950`}>
+      <body className={`${inter.variable} font-sans h-full bg-slate-950`}>
         <Providers>
           <div className="min-h-screen flex flex-col">
             <Navbar />
