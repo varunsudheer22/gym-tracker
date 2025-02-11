@@ -18,14 +18,14 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    '/log-workout',
-    '/progress',
-    '/exercises',
-    '/workout-days',
-    '/records',
-    '/api/workout-days/:path*',
-    '/api/exercises/:path*',
-    '/api/records/:path*',
-    '/api/metrics/:path*',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - auth (auth routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!auth|_next/static|_next/image|favicon.ico|public).*)',
   ],
 }; 
