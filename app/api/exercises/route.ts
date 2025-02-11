@@ -1,45 +1,57 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import { Exercise, IExercise } from '@/models';
+import { Exercise } from '@/models/Exercise';
 import mongoose from 'mongoose';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/config';
+import { requireAuth } from '../auth/auth-utils';
 
-export async function GET(request: NextRequest) {
+interface AuthSession {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+  };
+}
+
+interface IExercise {
+  name: string;
+  category: string;
+  workoutDayId?: string;
+  defaultSets?: number;
+  defaultReps?: number;
+  notes?: string;
+}
+
+interface IExerciseDocument {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  category: string;
+  workoutDayId?: mongoose.Types.ObjectId;
+  defaultSets?: number;
+  defaultReps?: number;
+  notes?: string;
+  userId: string;
+  [key: string]: any;
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
+    const session = await requireAuth() as AuthSession;
     await connectDB();
-    
-    // Get workoutDayId from query params if provided
-    const { searchParams } = new URL(request.url);
-    const workoutDayId = searchParams.get('workoutDayId');
-    
-    // Build query based on whether workoutDayId is provided
-    let query: any = { userId: session.user.email };
-    
-    if (workoutDayId) {
-      try {
-        query.workoutDayId = new mongoose.Types.ObjectId(workoutDayId);
-      } catch (error) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid workout day ID format' },
-          { status: 400 }
-        );
-      }
-    }
-    
-    const exercises = await Exercise.find(query).sort({ name: 1 });
-    return NextResponse.json({ success: true, exercises });
+
+    const exercises = await Exercise.find({ userId: session.user.id })
+      .sort({ name: 1 })
+      .lean() as IExerciseDocument[];
+
+    return NextResponse.json({ 
+      success: true, 
+      exercises: exercises.map(exercise => ({
+        ...exercise,
+        _id: exercise._id.toString(),
+        workoutDayId: exercise.workoutDayId?.toString()
+      }))
+    });
   } catch (error) {
-    console.error('Error fetching exercises:', error);
+    console.error('Error in GET /api/exercises:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch exercises' },
       { status: 500 }
@@ -47,35 +59,24 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const session = await requireAuth() as AuthSession;
+    await connectDB();
 
-    const body = await request.json();
-    const { name, category, workoutDayId, defaultSets, defaultReps, notes } = body;
-    
-    if (!name || !workoutDayId) {
+    const data = await req.json() as IExercise;
+    const { name, category, workoutDayId, defaultSets, defaultReps, notes } = data;
+
+    // Validate required fields
+    if (!name || !category) {
       return NextResponse.json(
-        { success: false, error: 'Name and workout day are required' },
+        { success: false, error: 'Name and category are required' },
         { status: 400 }
       );
     }
 
-    await connectDB();
-
-    const userId = session.user.email;
-
-    // Convert workoutDayId to ObjectId and validate
-    let workoutDayObjectId;
-    try {
-      workoutDayObjectId = new mongoose.Types.ObjectId(workoutDayId);
-    } catch (error) {
+    // Validate workoutDayId if provided
+    if (workoutDayId && !mongoose.Types.ObjectId.isValid(workoutDayId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid workout day ID format' },
         { status: 400 }
@@ -83,45 +84,47 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate numeric fields
-    const exerciseData: Partial<IExercise> = {
-      name: name.trim(),
-      workoutDayId: workoutDayObjectId,
-      category: category?.trim() || 'Other',
-      userId
-    };
-
-    // Only add optional numeric fields if they are valid numbers
-    if (typeof defaultSets === 'number' && !isNaN(defaultSets)) {
-      exerciseData.defaultSets = defaultSets;
-    }
-    if (typeof defaultReps === 'number' && !isNaN(defaultReps)) {
-      exerciseData.defaultReps = defaultReps;
-    }
-    if (notes?.trim()) {
-      exerciseData.notes = notes.trim();
+    if (defaultSets && (!Number.isInteger(defaultSets) || defaultSets < 1)) {
+      return NextResponse.json(
+        { success: false, error: 'Default sets must be a positive integer' },
+        { status: 400 }
+      );
     }
 
-    const exercise = await Exercise.create(exerciseData);
+    if (defaultReps && (!Number.isInteger(defaultReps) || defaultReps < 1)) {
+      return NextResponse.json(
+        { success: false, error: 'Default reps must be a positive integer' },
+        { status: 400 }
+      );
+    }
+
+    const exercise = new Exercise({
+      userId: session.user.id,
+      name,
+      category,
+      workoutDayId: workoutDayId ? new mongoose.Types.ObjectId(workoutDayId) : undefined,
+      defaultSets,
+      defaultReps,
+      notes: notes || ''
+    });
+
+    await exercise.save();
 
     return NextResponse.json({ 
       success: true, 
       exercise: {
-        _id: exercise._id,
-        name: exercise.name,
-        category: exercise.category,
-        workoutDayId: exercise.workoutDayId.toString(),
-        defaultSets: exercise.defaultSets,
-        defaultReps: exercise.defaultReps,
-        notes: exercise.notes
+        ...exercise.toObject(),
+        _id: exercise._id.toString(),
+        workoutDayId: exercise.workoutDayId?.toString()
       }
     });
   } catch (error: any) {
-    console.error('Error creating exercise:', error);
+    console.error('Error in POST /api/exercises:', error);
 
     // Handle duplicate key error
     if (error.code === 11000) {
       return NextResponse.json(
-        { success: false, error: 'An exercise with this name already exists for this user' },
+        { success: false, error: 'An exercise with this name already exists' },
         { status: 400 }
       );
     }
@@ -136,6 +139,50 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { success: false, error: 'Failed to create exercise' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await requireAuth() as AuthSession;
+    await connectDB();
+
+    const { searchParams } = new URL(req.url);
+    const exerciseId = searchParams.get('id');
+
+    if (!exerciseId) {
+      return NextResponse.json(
+        { success: false, error: 'Exercise ID is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(exerciseId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid exercise ID format' },
+        { status: 400 }
+      );
+    }
+
+    const exercise = await Exercise.findOneAndDelete({
+      _id: new mongoose.Types.ObjectId(exerciseId),
+      userId: session.user.id
+    });
+
+    if (!exercise) {
+      return NextResponse.json(
+        { success: false, error: 'Exercise not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in DELETE /api/exercises:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete exercise' },
       { status: 500 }
     );
   }

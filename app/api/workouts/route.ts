@@ -1,71 +1,183 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import { Workout, IWorkout, IExerciseLog, ISet } from '@/models';
+import { Workout } from '@/models/Workout';
 import mongoose from 'mongoose';
-import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { requireAuth } from '../auth/auth-utils';
-import { Session } from 'next-auth';
 
-interface WorkoutInput {
+interface AuthSession {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+  };
+}
+
+interface ISet {
+  reps: number;
+  weight: number;
+  notes?: string;
+}
+
+interface IExercise {
+  exerciseId: string;
+  exerciseName: string;
+  sets: ISet[];
+}
+
+interface IWorkout {
   workoutDayId: string;
   workoutDayName: string;
   date: string;
-  exercises: {
-    exerciseId: string;
-    exerciseName: string;
-    sets: ISet[];
-    notes?: string;
-  }[];
+  exercises: IExercise[];
 }
 
-// TODO: Add MongoDB connection and models
+interface IWorkoutDocument {
+  _id: mongoose.Types.ObjectId;
+  workoutDayId: mongoose.Types.ObjectId;
+  exercises: Array<{
+    exerciseId: mongoose.Types.ObjectId;
+    exerciseName: string;
+    sets: ISet[];
+  }>;
+  date: Date;
+  [key: string]: any;
+}
 
-export async function POST(request: NextRequest) {
+interface IWorkoutExercise {
+  exerciseId: mongoose.Types.ObjectId;
+  exerciseName: string;
+  sets: ISet[];
+  [key: string]: any;
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const authResult = await requireAuth();
-    if ('status' in authResult) return authResult; // This is the error response
-    const session = authResult as Session;
+    const session = await requireAuth() as AuthSession;
+    await connectDB();
 
-    const { workoutDayId, workoutDayName, date, exercises } = await request.json() as WorkoutInput;
-    
-    if (!workoutDayId || !workoutDayName || !date || !exercises?.length) {
+    const { searchParams } = new URL(req.url);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50); // Cap at 50
+    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1); // Minimum page 1
+    const skip = (page - 1) * limit;
+
+    const workouts = await Workout.find({ userId: session.user.id })
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean() as IWorkoutDocument[];
+
+    const total = await Workout.countDocuments({ userId: session.user.id });
+
+    return NextResponse.json({
+      success: true,
+      workouts: workouts.map((workout: IWorkoutDocument) => ({
+        ...workout,
+        _id: workout._id.toString(),
+        workoutDayId: workout.workoutDayId.toString(),
+        exercises: workout.exercises.map(exercise => ({
+          ...exercise,
+          exerciseId: exercise.exerciseId.toString()
+        })),
+        date: new Date(workout.date).toISOString()
+      })),
+      total,
+      hasMore: total > skip + limit,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('Error in GET /api/workouts:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch workouts' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await requireAuth() as AuthSession;
+    await connectDB();
+
+    const data = await req.json() as IWorkout;
+    const { workoutDayId, workoutDayName, date, exercises } = data;
+
+    // Validate required fields
+    if (!workoutDayId || !workoutDayName || !date || !exercises || !Array.isArray(exercises)) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    await connectDB();
-
-    if (!session.user.email) {
+    // Validate workoutDayId format
+    if (!mongoose.Types.ObjectId.isValid(workoutDayId)) {
       return NextResponse.json(
-        { success: false, error: 'User email not found' },
-        { status: 401 }
+        { success: false, error: 'Invalid workout day ID format' },
+        { status: 400 }
       );
     }
 
-    const userId = session.user.email;
+    // Validate exercises array
+    for (const exercise of exercises) {
+      if (!exercise.exerciseId || !exercise.exerciseName || !Array.isArray(exercise.sets)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid exercise data format' },
+          { status: 400 }
+        );
+      }
 
-    // Convert workoutDayId to ObjectId and validate exercise data
-    const workout = await Workout.create({
+      if (!mongoose.Types.ObjectId.isValid(exercise.exerciseId)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid exercise ID format' },
+          { status: 400 }
+        );
+      }
+
+      for (const set of exercise.sets) {
+        if (typeof set.reps !== 'number' || typeof set.weight !== 'number') {
+          return NextResponse.json(
+            { success: false, error: 'Invalid set data format' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    const workout = new Workout({
+      userId: session.user.id,
       workoutDayId: new mongoose.Types.ObjectId(workoutDayId),
       workoutDayName,
       date: new Date(date),
-      exercises: exercises.map(exercise => ({
+      exercises: exercises.map((exercise: IExercise) => ({
         exerciseId: new mongoose.Types.ObjectId(exercise.exerciseId),
         exerciseName: exercise.exerciseName,
-        sets: exercise.sets,
-        notes: exercise.notes
-      })),
-      userId
+        sets: exercise.sets.map((set: ISet) => ({
+          reps: set.reps,
+          weight: set.weight,
+          notes: set.notes || ''
+        }))
+      }))
     });
 
-    return NextResponse.json({ success: true, workout });
-  } catch (error: any) {
-    console.error('Error saving workout:', error);
+    await workout.save();
 
-    // Handle validation errors
+    return NextResponse.json({ 
+      success: true, 
+      workout: {
+        ...workout.toObject(),
+        _id: workout._id.toString(),
+        workoutDayId: workout.workoutDayId.toString(),
+        exercises: workout.exercises.map((exercise: IWorkoutExercise) => ({
+          ...exercise,
+          exerciseId: exercise.exerciseId.toString()
+        })),
+        date: workout.date.toISOString()
+      }
+    });
+  } catch (error: any) {
+    console.error('Error in POST /api/workouts:', error);
+
     if (error.name === 'ValidationError') {
       return NextResponse.json(
         { success: false, error: 'Invalid workout data' },
@@ -73,130 +185,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle invalid ObjectId
-    if (error.name === 'BSONError') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid ID format' },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
-      { success: false, error: 'Failed to save workout' },
+      { success: false, error: 'Failed to create workout' },
       { status: 500 }
     );
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function DELETE(req: NextRequest) {
   try {
-    const authResult = await requireAuth();
-    if ('status' in authResult) return authResult; // This is the error response
-    const session = authResult as Session;
-
-    const { searchParams } = new URL(request.url);
-    const exerciseId = searchParams.get('exerciseId');
-    const timeRange = searchParams.get('timeRange');
-
-    if (!exerciseId) {
-      return NextResponse.json(
-        { success: false, error: 'Exercise ID is required' },
-        { status: 400 }
-      );
-    }
-
+    const session = await requireAuth() as AuthSession;
     await connectDB();
 
-    if (!session.user.email) {
+    const { searchParams } = new URL(req.url);
+    const workoutId = searchParams.get('id');
+
+    if (!workoutId) {
       return NextResponse.json(
-        { success: false, error: 'User email not found' },
-        { status: 401 }
-      );
-    }
-
-    const userId = session.user.email;
-
-    // Calculate date range based on timeRange parameter
-    let startDate = new Date(0); // Default to earliest possible date
-    const endDate = new Date(); // Current date
-
-    switch (timeRange) {
-      case '1m':
-        startDate = startOfMonth(subMonths(new Date(), 1));
-        break;
-      case '3m':
-        startDate = startOfMonth(subMonths(new Date(), 3));
-        break;
-      case '6m':
-        startDate = startOfMonth(subMonths(new Date(), 6));
-        break;
-      case '1y':
-        startDate = startOfMonth(subMonths(new Date(), 12));
-        break;
-      // Default to all time if no valid timeRange is provided
-    }
-
-    // Find all workouts that contain the specified exercise within the date range
-    interface WorkoutQuery {
-      userId: string;
-      date: { $gte: Date; $lte: Date };
-      'exercises.exerciseId'?: mongoose.Types.ObjectId;
-      'exercises.exerciseName'?: string;
-    }
-
-    let query: WorkoutQuery = {
-      userId,
-      date: { $gte: startDate, $lte: endDate }
-    };
-
-    // Only add exerciseId to query if it's a valid ObjectId
-    if (mongoose.Types.ObjectId.isValid(exerciseId)) {
-      query['exercises.exerciseId'] = new mongoose.Types.ObjectId(exerciseId);
-    } else {
-      // If not a valid ObjectId, try matching by exercise name
-      query['exercises.exerciseName'] = exerciseId;
-    }
-
-    const workouts = await Workout.find(query).sort({ date: 1 });
-
-    // Process workouts to extract exercise data
-    const exerciseData = workouts.map(workout => {
-      const exercise = workout.exercises.find(
-        (e: IExerciseLog) => 
-          (mongoose.Types.ObjectId.isValid(exerciseId) && e.exerciseId.toString() === exerciseId) ||
-          e.exerciseName === exerciseId
-      );
-
-      if (!exercise) return null;
-
-      // Calculate max weight and total volume for the exercise
-      const maxWeight = Math.max(...exercise.sets.map((set: ISet) => Number(set.weight) || 0));
-      const totalVolume = exercise.sets.reduce((sum: number, set: ISet) => 
-        sum + (Number(set.weight) || 0) * (Number(set.reps) || 0)
-      , 0);
-
-      return {
-        date: workout.date.toISOString().split('T')[0],
-        maxWeight: maxWeight.toString(),
-        totalVolume: totalVolume.toString(),
-        sets: exercise.sets
-      };
-    }).filter(Boolean);
-
-    return NextResponse.json({ success: true, data: exerciseData });
-  } catch (error: any) {
-    console.error('Error fetching workout data:', error);
-
-    // Handle invalid ObjectId
-    if (error.name === 'BSONError') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid exercise ID format' },
+        { success: false, error: 'Workout ID is required' },
         { status: 400 }
       );
     }
 
+    if (!mongoose.Types.ObjectId.isValid(workoutId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid workout ID format' },
+        { status: 400 }
+      );
+    }
+
+    const workout = await Workout.findOneAndDelete({
+      _id: new mongoose.Types.ObjectId(workoutId),
+      userId: session.user.id
+    });
+
+    if (!workout) {
+      return NextResponse.json(
+        { success: false, error: 'Workout not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in DELETE /api/workouts:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch workout data' },
+      { success: false, error: 'Failed to delete workout' },
       { status: 500 }
     );
   }

@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { Workout } from '@/models/Workout';
 import { requireAuth } from '../../auth/auth-utils';
@@ -9,6 +9,15 @@ interface AuthSession {
     email: string;
     name?: string;
   };
+}
+
+interface ISet {
+  weight: number;
+  reps: number;
+}
+
+interface IExercise {
+  sets: ISet[];
 }
 
 export async function GET(req: NextRequest) {
@@ -27,20 +36,20 @@ export async function GET(req: NextRequest) {
     const workoutsWithStats = workouts.map(workout => ({
       ...workout,
       exerciseCount: workout.exercises.length,
-      totalVolume: workout.exercises.reduce((total, exercise) => {
-        return total + exercise.sets.reduce((setTotal, set) => {
+      totalVolume: workout.exercises.reduce((total: number, exercise: IExercise) => {
+        return total + exercise.sets.reduce((setTotal: number, set: ISet) => {
           return setTotal + (set.weight * set.reps);
         }, 0);
       }, 0),
     }));
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       data: workoutsWithStats
     });
   } catch (error) {
     console.error('Error fetching recent workouts:', error);
-    return Response.json(
+    return NextResponse.json(
       { success: false, error: 'Failed to fetch recent workouts' },
       { status: 500 }
     );

@@ -1,6 +1,18 @@
 import mongoose from 'mongoose';
 
-const achievementSchema = new mongoose.Schema({
+export interface IAchievement {
+  _id: mongoose.Types.ObjectId;
+  userId: string;
+  type: 'first_workout' | 'workout_streak' | 'weight_milestone' | 'volume_milestone' | 'goal_achieved' | 'pr_streak';
+  name: string;
+  description: string;
+  value?: number;
+  exerciseId?: mongoose.Types.ObjectId;
+  exerciseName?: string;
+  earnedAt: Date;
+}
+
+const achievementSchema = new mongoose.Schema<IAchievement>({
   userId: { type: String, required: true },
   type: { 
     type: String, 
@@ -20,23 +32,12 @@ const achievementSchema = new mongoose.Schema({
   exerciseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Exercise' },
   exerciseName: { type: String },
   earnedAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true
 });
 
 // Add indexes
 achievementSchema.index({ userId: 1, type: 1 });
 
 // Export the model
-export const Achievement = mongoose.models.Achievement || mongoose.model('Achievement', achievementSchema);
-
-// TypeScript interface
-export interface IAchievement {
-  _id: mongoose.Types.ObjectId;
-  userId: string;
-  type: 'first_workout' | 'workout_streak' | 'weight_milestone' | 'volume_milestone' | 'goal_achieved' | 'pr_streak';
-  name: string;
-  description: string;
-  value?: number;
-  exerciseId?: mongoose.Types.ObjectId;
-  exerciseName?: string;
-  earnedAt: Date;
-} 
+export const Achievement = mongoose.models.Achievement || mongoose.model<IAchievement>('Achievement', achievementSchema); 

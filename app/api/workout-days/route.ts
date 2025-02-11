@@ -1,25 +1,28 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import { WorkoutDay } from '@/models';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/config';
+import { WorkoutDay } from '@/models/WorkoutDay';
+import mongoose from 'mongoose';
+import { requireAuth } from '../auth/auth-utils';
 
-export async function GET() {
+interface AuthSession {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+  };
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
+    const session = await requireAuth() as AuthSession;
     await connectDB();
-    const workoutDays = await WorkoutDay.find({ userId: session.user.email }).sort({ name: 1 });
+
+    const workoutDays = await WorkoutDay.find({ userId: session.user.id })
+      .sort({ name: 1 });
+
     return NextResponse.json({ success: true, workoutDays });
   } catch (error) {
-    console.error('Error fetching workout days:', error);
+    console.error('Error in GET /api/workout-days:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch workout days' },
       { status: 500 }
@@ -27,17 +30,12 @@ export async function GET() {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const session = await requireAuth() as AuthSession;
+    await connectDB();
 
-    const { name } = await request.json();
+    const { name } = await req.json();
     
     if (!name) {
       return NextResponse.json(
@@ -46,13 +44,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await connectDB();
-
-    const userId = session.user.email;
-
     const workoutDay = await WorkoutDay.create({
       name,
-      userId
+      userId: session.user.id
     });
 
     return NextResponse.json({ 
@@ -60,7 +54,7 @@ export async function POST(request: NextRequest) {
       workoutDay 
     });
   } catch (error: any) {
-    console.error('Error creating workout day:', error);
+    console.error('Error in POST /api/workout-days:', error);
 
     // Handle duplicate key error
     if (error.code === 11000) {

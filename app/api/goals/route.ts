@@ -1,11 +1,11 @@
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { Goal } from '@/models/Goal';
 import mongoose from 'mongoose';
 import { Session } from 'next-auth';
 import { requireAuth } from '../auth/auth-utils';
 
-interface AuthSession extends Session {
+interface AuthSession {
   user: {
     id: string;
     email: string;
@@ -19,12 +19,12 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     const goals = await Goal.find({ userId: session.user.id })
-      .sort({ createdAt: -1 });
+      .sort({ targetDate: 1 });
 
-    return Response.json({ success: true, goals });
+    return NextResponse.json({ success: true, goals });
   } catch (error) {
     console.error('Error in GET /api/goals:', error);
-    return Response.json(
+    return NextResponse.json(
       { success: false, error: 'Failed to fetch goals' },
       { status: 500 }
     );
@@ -37,26 +37,24 @@ export async function POST(req: NextRequest) {
     await connectDB();
 
     const data = await req.json();
-    const { exerciseId, exerciseName, type, target, deadline, startValue } = data;
+    const { exerciseId, exerciseName, targetWeight, targetReps, targetDate, notes } = data;
 
     const goal = new Goal({
       userId: session.user.id,
       exerciseId: new mongoose.Types.ObjectId(exerciseId),
       exerciseName,
-      type,
-      target,
-      deadline: deadline ? new Date(deadline) : undefined,
-      startValue,
-      currentValue: startValue,
-      status: 'in_progress'
+      targetWeight,
+      targetReps,
+      targetDate: new Date(targetDate),
+      notes: notes || ''
     });
 
     await goal.save();
 
-    return Response.json({ success: true, goal });
+    return NextResponse.json({ success: true, goal });
   } catch (error) {
     console.error('Error in POST /api/goals:', error);
-    return Response.json(
+    return NextResponse.json(
       { success: false, error: 'Failed to create goal' },
       { status: 500 }
     );
@@ -72,7 +70,7 @@ export async function DELETE(req: NextRequest) {
     const goalId = searchParams.get('id');
 
     if (!goalId) {
-      return Response.json(
+      return NextResponse.json(
         { success: false, error: 'Goal ID is required' },
         { status: 400 }
       );
@@ -84,16 +82,16 @@ export async function DELETE(req: NextRequest) {
     });
 
     if (!goal) {
-      return Response.json(
+      return NextResponse.json(
         { success: false, error: 'Goal not found' },
         { status: 404 }
       );
     }
 
-    return Response.json({ success: true });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in DELETE /api/goals:', error);
-    return Response.json(
+    return NextResponse.json(
       { success: false, error: 'Failed to delete goal' },
       { status: 500 }
     );

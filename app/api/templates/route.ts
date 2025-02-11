@@ -1,11 +1,11 @@
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { WorkoutTemplate } from '@/models/WorkoutTemplate';
 import mongoose from 'mongoose';
 import { Session } from 'next-auth';
 import { requireAuth } from '../auth/auth-utils';
 
-interface AuthSession extends Session {
+interface AuthSession {
   user: {
     id: string;
     email: string;
@@ -21,10 +21,10 @@ export async function GET(req: NextRequest) {
     const templates = await WorkoutTemplate.find({ userId: session.user.id })
       .sort({ lastUsed: -1 });
 
-    return Response.json({ success: true, templates });
+    return NextResponse.json({ success: true, templates });
   } catch (error) {
     console.error('Error in GET /api/templates:', error);
-    return Response.json(
+    return NextResponse.json(
       { success: false, error: 'Failed to fetch templates' },
       { status: 500 }
     );
@@ -54,10 +54,10 @@ export async function POST(req: NextRequest) {
 
     await template.save();
 
-    return Response.json({ success: true, template });
+    return NextResponse.json({ success: true, template });
   } catch (error) {
     console.error('Error in POST /api/templates:', error);
-    return Response.json(
+    return NextResponse.json(
       { success: false, error: 'Failed to create template' },
       { status: 500 }
     );
@@ -73,7 +73,7 @@ export async function DELETE(req: NextRequest) {
     const templateId = searchParams.get('id');
 
     if (!templateId) {
-      return Response.json(
+      return NextResponse.json(
         { success: false, error: 'Template ID is required' },
         { status: 400 }
       );
@@ -85,16 +85,16 @@ export async function DELETE(req: NextRequest) {
     });
 
     if (!template) {
-      return Response.json(
+      return NextResponse.json(
         { success: false, error: 'Template not found' },
         { status: 404 }
       );
     }
 
-    return Response.json({ success: true });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in DELETE /api/templates:', error);
-    return Response.json(
+    return NextResponse.json(
       { success: false, error: 'Failed to delete template' },
       { status: 500 }
     );

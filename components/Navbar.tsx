@@ -1,352 +1,146 @@
-import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
-import {
-  HomeIcon,
-  FireIcon,
-  ClipboardDocumentListIcon,
-  ChartBarIcon,
-  TrophyIcon,
-  UserIcon,
-  ArrowTrendingUpIcon,
-  PlusCircleIcon,
-  CalendarIcon,
-  ClockIcon,
-  ArrowRightOnRectangleIcon,
+'use client';
+
+import { useState } from "react";
+import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+import Image from "next/image";
+import { 
+  ClipboardIcon, 
+  Cog6ToothIcon,
   ChevronDownIcon,
-  BookmarkIcon,
-  Cog6ToothIcon
-} from '@heroicons/react/24/outline';
+  ChartBarSquareIcon,
+} from "@heroicons/react/24/outline";
 
-interface NavItem {
-  label: string;
-  href?: string;
-  icon?: React.ElementType;
-  items?: NavItem[];
-  description?: string;
-}
-
-const navigation: NavItem[] = [
-  {
-    label: 'Home',
-    href: '/',
-    icon: HomeIcon,
-    description: 'Your workout dashboard'
-  },
-  {
-    label: 'Train',
-    icon: FireIcon,
-    description: 'Start and manage workouts',
-    items: [
-      { 
-        label: 'Start Workout', 
-        href: '/start-workout',
-        icon: PlusCircleIcon,
-        description: 'Begin a new workout session'
-      },
-      { 
-        label: 'Log Workout', 
-        href: '/log-workout',
-        icon: ClipboardDocumentListIcon,
-        description: 'Record your workout details'
-      },
-      { 
-        label: 'Workout History', 
-        href: '/history',
-        icon: ClockIcon,
-        description: 'View past workouts'
-      }
-    ]
-  },
-  {
-    label: 'Plan',
-    icon: CalendarIcon,
-    description: 'Organize your training',
-    items: [
-      { 
-        label: 'Workout Days', 
-        href: '/workout-days',
-        icon: CalendarIcon,
-        description: 'Manage your workout schedule'
-      },
-      { 
-        label: 'Exercise Library', 
-        href: '/exercises',
-        icon: BookmarkIcon,
-        description: 'Browse and manage exercises'
-      }
-    ]
-  },
-  {
-    label: 'Track',
-    icon: ChartBarIcon,
-    description: 'Monitor your progress',
-    items: [
-      { 
-        label: 'Goals', 
-        href: '/goals',
-        icon: ArrowTrendingUpIcon,
-        description: 'Set and track your goals'
-      },
-      { 
-        label: 'Body Metrics', 
-        href: '/body-metrics',
-        icon: UserIcon,
-        description: 'Track body measurements'
-      },
-      { 
-        label: 'Records', 
-        href: '/personal-records',
-        icon: TrophyIcon,
-        description: 'View your personal bests'
-      }
-    ]
-  }
-];
-
-export default function Navbar() {
-  const pathname = usePathname();
+export function Navbar() {
+  const { data: session } = useSession();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  const isActive = (href: string) => pathname === href;
-
-  const handleDropdownClick = (label: string) => {
-    setOpenDropdown(openDropdown === label ? null : label);
+  const handleDropdownClick = (dropdown: string) => {
+    setOpenDropdown(openDropdown === dropdown ? null : dropdown);
   };
 
+  const dropdownClasses = (isOpen: boolean) => `
+    absolute top-[calc(100%+0.25rem)] left-1/2 -translate-x-1/2 w-56 rounded-xl 
+    bg-slate-800/95 backdrop-blur-xl
+    shadow-[0_0_40px_-4px_rgba(0,0,0,0.45)] py-2 z-[100] 
+    border border-slate-700/50
+    transform transition-all duration-200 ease-out origin-top
+    ${isOpen 
+      ? 'opacity-100 translate-y-0 scale-100' 
+      : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'}
+  `;
+
+  const dropdownItemClasses = `
+    block w-full px-4 py-2.5 text-sm text-white/80 hover:text-white
+    hover:bg-slate-700/50 transition-colors duration-150
+    border-l-2 border-transparent hover:border-[#4477FF]
+    first:rounded-t-lg last:rounded-b-lg
+  `;
+
+  const dropdownButtonClasses = `
+    flex items-center rounded-md px-4 py-2.5 text-sm font-semibold 
+    text-white/80 hover:text-white hover:bg-slate-800/80
+    transition-all duration-200 relative group
+    after:absolute after:bottom-0 after:left-0 after:h-[2px] 
+    after:bg-[#4477FF] after:transition-all after:duration-300
+    hover:after:w-full
+  `;
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-900 border-b border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex">
-            {/* Logo */}
-            <Link href="/" className="flex-shrink-0 flex items-center">
-              <FireIcon className="h-8 w-8 text-orange-500" />
-              <span className="ml-2 text-xl font-bold text-white">GymTracker</span>
+    <nav className="bg-slate-900/95 backdrop-blur-lg shadow-lg border-b border-slate-800 relative z-50">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 justify-between items-center">
+          <div className="flex items-center">
+            <Link 
+              href="/" 
+              className="flex items-center gap-2 group"
+            >
+              <div className="relative w-[140px] h-[35px]">
+                <Image
+                  src="/flog-logo.png"
+                  alt="FLOG"
+                  fill
+                  className="object-contain transition-opacity group-hover:opacity-90"
+                  priority
+                />
+              </div>
             </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-4">
-              {navigation.map((item) => (
-                <div key={item.label} className="relative group">
-                  {item.href ? (
-                    <Link
-                      href={item.href}
-                      className={`
-                        inline-flex items-center px-4 py-2 text-sm font-medium rounded-md
-                        transition-colors duration-150 ease-in-out
-                        ${isActive(item.href)
-                          ? 'bg-orange-500 text-white'
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                        }
-                      `}
-                    >
-                      {item.icon && <item.icon className="h-5 w-5 mr-2" />}
-                      {item.label}
-                    </Link>
-                  ) : (
-                    <div>
-                      <button
-                        onClick={() => handleDropdownClick(item.label)}
-                        className={`
-                          inline-flex items-center px-4 py-2 text-sm font-medium rounded-md
-                          transition-colors duration-150 ease-in-out
-                          ${openDropdown === item.label
-                            ? 'bg-orange-500 text-white'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                          }
-                        `}
-                      >
-                        {item.icon && <item.icon className="h-5 w-5 mr-2" />}
-                        {item.label}
-                        <ChevronDownIcon className={`
-                          ml-2 h-4 w-4 transition-transform duration-200
-                          ${openDropdown === item.label ? 'transform rotate-180' : ''}
-                        `} />
-                      </button>
-
-                      {/* Dropdown Menu */}
-                      {openDropdown === item.label && item.items && (
-                        <div className="absolute left-0 mt-2 w-64 rounded-md shadow-lg bg-slate-800 ring-1 ring-black ring-opacity-5">
-                          <div className="py-1" role="menu">
-                            {item.items.map((subItem) => (
-                              <Link
-                                key={subItem.label}
-                                href={subItem.href || '#'}
-                                className={`
-                                  group flex items-center px-4 py-3 text-sm
-                                  ${isActive(subItem.href || '')
-                                    ? 'bg-orange-500 text-white'
-                                    : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                                  }
-                                `}
-                                role="menuitem"
-                                onClick={() => setOpenDropdown(null)}
-                              >
-                                <div className="flex items-center">
-                                  {subItem.icon && (
-                                    <subItem.icon className="h-5 w-5 mr-3" />
-                                  )}
-                                  <div>
-                                    <div className="font-medium">{subItem.label}</div>
-                                    {subItem.description && (
-                                      <div className="mt-0.5 text-xs opacity-75">
-                                        {subItem.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+          </div>
+          <div className="flex items-center">
+            {session ? (
+              <>
+                {/* Primary Action */}
+                <div className="mr-6">
+                  <Link
+                    href="/log-workout"
+                    className="rounded-md bg-[#4477FF] px-4 py-2.5 text-sm font-bold text-white 
+                    hover:bg-[#5588FF] transition-all flex items-center shadow-lg 
+                    shadow-[#4477FF]/20 hover:shadow-[#5588FF]/30 hover:scale-105
+                    active:scale-95 duration-200"
+                  >
+                    <ClipboardIcon className="h-5 w-5 mr-2" />
+                    LOG WORKOUT
+                  </Link>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Right side - User menu */}
-          <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            <button
-              onClick={() => signOut()}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors duration-150 ease-in-out"
-            >
-              <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-              Sign Out
-            </button>
-          </div>
+                {/* Track & Analysis Dropdown */}
+                <div className="relative mr-6">
+                  <button
+                    onClick={() => handleDropdownClick('track')}
+                    className={`${dropdownButtonClasses} ${openDropdown === 'track' ? 'after:w-full' : 'after:w-0'}`}
+                  >
+                    <ChartBarSquareIcon className="h-5 w-5 mr-2" />
+                    TRACK & ANALYSIS
+                    <ChevronDownIcon className={`h-4 w-4 ml-1 transform transition-transform duration-200 ${openDropdown === 'track' ? 'rotate-180' : ''}`} />
+                  </button>
+                  <div className={dropdownClasses(openDropdown === 'track')}>
+                    <Link href="/history" className={dropdownItemClasses}>HISTORY</Link>
+                    <Link href="/progress" className={dropdownItemClasses}>PROGRESS</Link>
+                    <Link href="/records" className={dropdownItemClasses}>RECORDS</Link>
+                    <Link href="/metrics" className={dropdownItemClasses}>METRICS</Link>
+                  </div>
+                </div>
 
-          {/* Mobile menu button */}
-          <div className="flex items-center sm:hidden">
-            <button
-              onClick={() => setOpenDropdown(openDropdown ? null : 'mobile')}
-              className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 focus:outline-none"
-            >
-              <span className="sr-only">Open main menu</span>
-              {openDropdown === 'mobile' ? (
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
+                {/* Setup Dropdown */}
+                <div className="relative mr-6">
+                  <button
+                    onClick={() => handleDropdownClick('setup')}
+                    className={`${dropdownButtonClasses} ${openDropdown === 'setup' ? 'after:w-full' : 'after:w-0'}`}
+                  >
+                    <Cog6ToothIcon className="h-5 w-5 mr-2" />
+                    SETUP
+                    <ChevronDownIcon className={`h-4 w-4 ml-1 transform transition-transform duration-200 ${openDropdown === 'setup' ? 'rotate-180' : ''}`} />
+                  </button>
+                  <div className={dropdownClasses(openDropdown === 'setup')}>
+                    <Link href="/workout-days" className={dropdownItemClasses}>WORKOUT DAYS</Link>
+                    <Link href="/exercises" className={dropdownItemClasses}>EXERCISES</Link>
+                    <Link href="/goals" className={dropdownItemClasses}>GOALS</Link>
+                  </div>
+                </div>
+
+                {/* Sign Out */}
+                <button
+                  onClick={() => signOut()}
+                  className="rounded-md bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-400 
+                  hover:bg-red-500/20 hover:text-red-300 transition-all duration-200
+                  hover:scale-105 active:scale-95"
+                >
+                  SIGN OUT
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/auth/signin"
+                className="rounded-md bg-[#4477FF] px-4 py-2.5 text-sm font-bold text-white 
+                hover:bg-[#5588FF] transition-all shadow-lg shadow-[#4477FF]/20
+                hover:scale-105 active:scale-95 duration-200"
+              >
+                SIGN IN
+              </Link>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {openDropdown === 'mobile' && (
-        <div className="sm:hidden bg-slate-900">
-          <div className="px-2 pt-2 pb-3 space-y-1">
-            {navigation.map((item) => (
-              <div key={item.label}>
-                {item.href ? (
-                  <Link
-                    href={item.href}
-                    className={`
-                      block px-3 py-2 rounded-md text-base font-medium
-                      ${isActive(item.href)
-                        ? 'bg-orange-500 text-white'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                      }
-                    `}
-                    onClick={() => setOpenDropdown(null)}
-                  >
-                    <div className="flex items-center">
-                      {item.icon && <item.icon className="h-5 w-5 mr-3" />}
-                      <div>
-                        <div>{item.label}</div>
-                        {item.description && (
-                          <div className="mt-0.5 text-xs opacity-75">
-                            {item.description}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => handleDropdownClick(item.label)}
-                      className={`
-                        w-full text-left px-3 py-2 rounded-md text-base font-medium
-                        ${openDropdown === item.label
-                          ? 'bg-orange-500 text-white'
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                        }
-                      `}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          {item.icon && <item.icon className="h-5 w-5 mr-3" />}
-                          <div>
-                            <div>{item.label}</div>
-                            {item.description && (
-                              <div className="mt-0.5 text-xs opacity-75">
-                                {item.description}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <ChevronDownIcon className={`
-                          h-5 w-5 transition-transform duration-200
-                          ${openDropdown === item.label ? 'transform rotate-180' : ''}
-                        `} />
-                      </div>
-                    </button>
-                    {openDropdown === item.label && item.items && (
-                      <div className="pl-4 mt-2 space-y-2">
-                        {item.items.map((subItem) => (
-                          <Link
-                            key={subItem.label}
-                            href={subItem.href || '#'}
-                            className={`
-                              block px-3 py-2 rounded-md text-base font-medium
-                              ${isActive(subItem.href || '')
-                                ? 'bg-orange-500 text-white'
-                                : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                              }
-                            `}
-                            onClick={() => setOpenDropdown(null)}
-                          >
-                            <div className="flex items-center">
-                              {subItem.icon && <subItem.icon className="h-5 w-5 mr-3" />}
-                              <div>
-                                <div>{subItem.label}</div>
-                                {subItem.description && (
-                                  <div className="mt-0.5 text-xs opacity-75">
-                                    {subItem.description}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
-            <button
-              onClick={() => signOut()}
-              className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:bg-slate-800 hover:text-white"
-            >
-              <div className="flex items-center">
-                <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3" />
-                Sign Out
-              </div>
-            </button>
-          </div>
-        </div>
-      )}
     </nav>
   );
 } 

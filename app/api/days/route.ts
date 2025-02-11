@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import { PersonalRecord } from '@/models/PersonalRecord';
+import { WorkoutDay } from '@/models/WorkoutDay';
 import mongoose from 'mongoose';
 import { requireAuth } from '../auth/auth-utils';
 
@@ -17,14 +17,14 @@ export async function GET(req: NextRequest) {
     const session = await requireAuth() as AuthSession;
     await connectDB();
 
-    const records = await PersonalRecord.find({ userId: session.user.id })
-      .sort({ date: -1 });
+    const workoutDays = await WorkoutDay.find({ userId: session.user.id })
+      .sort({ name: 1 });
 
-    return NextResponse.json({ success: true, records });
+    return NextResponse.json({ success: true, workoutDays });
   } catch (error) {
-    console.error('Error in GET /api/records:', error);
+    console.error('Error in GET /api/days:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch records' },
+      { success: false, error: 'Failed to fetch workout days' },
       { status: 500 }
     );
   }
@@ -36,25 +36,21 @@ export async function POST(req: NextRequest) {
     await connectDB();
 
     const data = await req.json();
-    const { exerciseId, exerciseName, weight, reps, date, notes } = data;
+    const { name, notes } = data;
 
-    const record = new PersonalRecord({
+    const workoutDay = new WorkoutDay({
       userId: session.user.id,
-      exerciseId: new mongoose.Types.ObjectId(exerciseId),
-      exerciseName,
-      weight,
-      reps,
-      date: new Date(date),
+      name,
       notes: notes || ''
     });
 
-    await record.save();
+    await workoutDay.save();
 
-    return NextResponse.json({ success: true, record });
+    return NextResponse.json({ success: true, workoutDay });
   } catch (error) {
-    console.error('Error in POST /api/records:', error);
+    console.error('Error in POST /api/days:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to create record' },
+      { success: false, error: 'Failed to create workout day' },
       { status: 500 }
     );
   }
@@ -66,32 +62,32 @@ export async function DELETE(req: NextRequest) {
     await connectDB();
 
     const { searchParams } = new URL(req.url);
-    const recordId = searchParams.get('id');
+    const workoutDayId = searchParams.get('id');
 
-    if (!recordId) {
+    if (!workoutDayId) {
       return NextResponse.json(
-        { success: false, error: 'Record ID is required' },
+        { success: false, error: 'Workout day ID is required' },
         { status: 400 }
       );
     }
 
-    const record = await PersonalRecord.findOneAndDelete({
-      _id: new mongoose.Types.ObjectId(recordId),
+    const workoutDay = await WorkoutDay.findOneAndDelete({
+      _id: new mongoose.Types.ObjectId(workoutDayId),
       userId: session.user.id
     });
 
-    if (!record) {
+    if (!workoutDay) {
       return NextResponse.json(
-        { success: false, error: 'Record not found' },
+        { success: false, error: 'Workout day not found' },
         { status: 404 }
       );
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in DELETE /api/records:', error);
+    console.error('Error in DELETE /api/days:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to delete record' },
+      { success: false, error: 'Failed to delete workout day' },
       { status: 500 }
     );
   }

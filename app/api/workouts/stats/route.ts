@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { Workout } from '@/models/Workout';
 import { requireAuth } from '../../auth/auth-utils';
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       data: {
         totalWorkouts,
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching workout stats:', error);
-    return Response.json(
+    return NextResponse.json(
       { success: false, error: 'Failed to fetch workout statistics' },
       { status: 500 }
     );

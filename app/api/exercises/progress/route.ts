@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: exerciseData });
   } catch (error: any) {
-    console.error('Error fetching workout data:', error);
+    console.error('Error fetching exercise data:', error);
 
     // Handle invalid ObjectId
     if (error.name === 'BSONError') {
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch workout data' },
+      { success: false, error: 'Failed to fetch exercise data' },
       { status: 500 }
     );
   }
