@@ -1,101 +1,317 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  FireIcon,
+  ChartBarIcon,
+  CalendarIcon,
+  ClockIcon,
+  ArrowTrendingUpIcon,
+  UserIcon,
+  TrophyIcon,
+  PlusCircleIcon,
+  BoltIcon,
+  HeartIcon,
+} from '@heroicons/react/24/outline';
+
+interface QuickAction {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  color: string;
+  description: string;
+}
+
+const quickActions: QuickAction[] = [
+  {
+    label: 'Start Workout',
+    href: '/start-workout',
+    icon: PlusCircleIcon,
+    color: 'text-orange-500',
+    description: 'Begin a new workout session'
+  },
+  {
+    label: 'Log Workout',
+    href: '/log-workout',
+    icon: ClockIcon,
+    color: 'text-blue-500',
+    description: 'Record your workout details'
+  },
+  {
+    label: 'Track Progress',
+    href: '/goals',
+    icon: ArrowTrendingUpIcon,
+    color: 'text-green-500',
+    description: 'View and update your goals'
+  },
+  {
+    label: 'Body Metrics',
+    href: '/body-metrics',
+    icon: UserIcon,
+    color: 'text-purple-500',
+    description: 'Update your measurements'
+  },
+];
+
+interface WorkoutStats {
+  totalWorkouts: number;
+  currentStreak: number;
+  thisWeek: number;
+  thisMonth: number;
+}
+
+export default function Dashboard() {
+  const [recentWorkouts, setRecentWorkouts] = useState([]);
+  const [activeGoals, setActiveGoals] = useState([]);
+  const [workoutStats, setWorkoutStats] = useState<WorkoutStats>({
+    totalWorkouts: 0,
+    currentStreak: 0,
+    thisWeek: 0,
+    thisMonth: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch all dashboard data
+    Promise.all([
+      fetch('/api/workouts/recent').then(res => res.json()),
+      fetch('/api/goals/active').then(res => res.json()),
+      fetch('/api/workouts/stats').then(res => res.json())
+    ])
+      .then(([workouts, goals, stats]) => {
+        setRecentWorkouts(workouts.data || []);
+        setActiveGoals(goals.data || []);
+        setWorkoutStats(stats.data || {
+          totalWorkouts: 0,
+          currentStreak: 0,
+          thisWeek: 0,
+          thisMonth: 0
+        });
+      })
+      .catch(error => console.error('Error fetching dashboard data:', error))
+      .finally(() => setIsLoading(false));
+  }, []);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="space-y-6 p-6">
+      {/* Welcome Section */}
+      <div className="flex flex-col space-y-2">
+        <h1 className="text-3xl font-bold text-white">Welcome Back!</h1>
+        <p className="text-slate-400">Track your fitness journey and achieve your goals.</p>
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      {/* Stats Overview */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-slate-800 bg-slate-900">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 rounded-lg bg-slate-800 text-orange-500">
+                <BoltIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">Current Streak</p>
+                <h3 className="text-2xl font-bold text-white">
+                  {workoutStats.currentStreak} days
+                </h3>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-800 bg-slate-900">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 rounded-lg bg-slate-800 text-green-500">
+                <HeartIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">This Week</p>
+                <h3 className="text-2xl font-bold text-white">
+                  {workoutStats.thisWeek} workouts
+                </h3>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-800 bg-slate-900">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 rounded-lg bg-slate-800 text-blue-500">
+                <CalendarIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">This Month</p>
+                <h3 className="text-2xl font-bold text-white">
+                  {workoutStats.thisMonth} workouts
+                </h3>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-800 bg-slate-900">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 rounded-lg bg-slate-800 text-purple-500">
+                <TrophyIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-400">Total Workouts</p>
+                <h3 className="text-2xl font-bold text-white">
+                  {workoutStats.totalWorkouts}
+                </h3>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions Grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {quickActions.map((action) => (
+          <Link key={action.label} href={action.href}>
+            <Card className="hover:bg-slate-800/50 transition-colors cursor-pointer border-slate-800 bg-slate-900">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-4">
+                  <div className={`p-2 rounded-lg bg-slate-800 ${action.color}`}>
+                    <action.icon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{action.label}</h3>
+                    <p className="text-sm text-slate-400">{action.description}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      {/* Dashboard Grid */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Recent Workouts */}
+        <Card className="border-slate-800 bg-slate-900">
+          <CardHeader className="border-b border-slate-800">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-xl font-semibold text-white flex items-center">
+                <FireIcon className="h-5 w-5 mr-2 text-orange-500" />
+                Recent Workouts
+              </CardTitle>
+              <Link 
+                href="/history" 
+                className="text-sm text-orange-500 hover:text-orange-400"
+              >
+                View All
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {isLoading ? (
+              <div className="text-center py-4 text-slate-400">Loading...</div>
+            ) : recentWorkouts.length > 0 ? (
+              <div className="space-y-4">
+                {recentWorkouts.map((workout: any) => (
+                  <div
+                    key={workout._id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors"
+                  >
+                    <div>
+                      <h4 className="font-medium text-white">{workout.workoutDayName}</h4>
+                      <div className="flex items-center space-x-3 mt-1">
+                        <p className="text-sm text-slate-400">
+                          {new Date(workout.date).toLocaleDateString()}
+                        </p>
+                        <span className="text-slate-600">•</span>
+                        <p className="text-sm text-slate-400">
+                          {workout.exerciseCount} exercises
+                        </p>
+                        <span className="text-slate-600">•</span>
+                        <p className="text-sm text-slate-400">
+                          {Math.round(workout.totalVolume).toLocaleString()} kg total
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      href={`/workouts/${workout._id}`}
+                      className="text-orange-500 hover:text-orange-400"
+                    >
+                      View Details
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-slate-400">
+                No recent workouts found
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Active Goals */}
+        <Card className="border-slate-800 bg-slate-900">
+          <CardHeader className="border-b border-slate-800">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-xl font-semibold text-white flex items-center">
+                <TrophyIcon className="h-5 w-5 mr-2 text-yellow-500" />
+                Active Goals
+              </CardTitle>
+              <Link 
+                href="/goals" 
+                className="text-sm text-yellow-500 hover:text-yellow-400"
+              >
+                View All
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {isLoading ? (
+              <div className="text-center py-4 text-slate-400">Loading...</div>
+            ) : activeGoals.length > 0 ? (
+              <div className="space-y-4">
+                {activeGoals.map((goal: any) => (
+                  <div
+                    key={goal._id}
+                    className="p-3 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-medium text-white">{goal.exerciseName}</h4>
+                      <span className="text-sm px-2 py-1 rounded bg-slate-700 text-slate-300">
+                        {goal.type}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-700 rounded-full h-2.5">
+                      <div
+                        className="bg-green-500 h-2.5 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${goal.progress}%`
+                        }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between mt-2">
+                      <div className="text-sm">
+                        <span className="text-slate-400">Current: </span>
+                        <span className="text-white">{goal.currentValue}</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-slate-400">Target: </span>
+                        <span className="text-white">{goal.target}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-slate-400">
+                No active goals found
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
