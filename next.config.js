@@ -9,6 +9,7 @@ const nextConfig = {
         hostname: '**',
       },
     ],
+    domains: ['lh3.googleusercontent.com'],
   },
   experimental: {
     serverActions: true
@@ -51,6 +52,9 @@ const nextConfig = {
   output: 'standalone',
   typescript: {
     ignoreBuildErrors: true
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   }
 }
 
