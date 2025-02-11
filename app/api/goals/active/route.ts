@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { Goal } from '@/models/Goal';
 import { requireAuth } from '../../auth/auth-utils';
@@ -34,13 +34,13 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       data: goalsWithProgress
     });
   } catch (error) {
     console.error('Error fetching active goals:', error);
-    return Response.json(
+    return NextResponse.json(
       { success: false, error: 'Failed to fetch active goals' },
       { status: 500 }
     );
